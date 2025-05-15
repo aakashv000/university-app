@@ -304,6 +304,8 @@ const PaymentsPage: React.FC = () => {
                 {!isStudent && <TableCell>Student</TableCell>}
                 <TableCell>Amount</TableCell>
                 <TableCell>Date</TableCell>
+                <TableCell>Semester</TableCell>
+                <TableCell>Course</TableCell>
                 <TableCell>Method</TableCell>
                 <TableCell>Transaction ID</TableCell>
                 <TableCell>Receipt</TableCell>
@@ -316,6 +318,8 @@ const PaymentsPage: React.FC = () => {
                   {!isStudent && <TableCell>{payment.student_id}</TableCell>}
                   <TableCell>${payment.amount.toFixed(2)}</TableCell>
                   <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{payment.student_fee?.semester?.name || 'N/A'}</TableCell>
+                  <TableCell>{payment.student_fee?.description || 'N/A'}</TableCell>
                   <TableCell>{payment.payment_method}</TableCell>
                   <TableCell>{payment.transaction_id || 'N/A'}</TableCell>
                   <TableCell>

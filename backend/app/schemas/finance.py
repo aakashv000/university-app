@@ -121,6 +121,7 @@ class Receipt(ReceiptInDBBase):
 # Combined schemas for API responses
 class PaymentWithReceipt(Payment):
     receipt: Optional[Receipt] = None
+    student_fee: Optional[StudentFee] = None
 
 class StudentFeeWithPayments(StudentFee):
     payments: List[PaymentWithReceipt] = []

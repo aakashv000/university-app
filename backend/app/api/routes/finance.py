@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from sqlalchemy.orm import joinedload
 
 from app.core.dependencies import get_db, get_admin_user, get_faculty_user, get_student_user, get_current_active_user
 from app.models.user import User
@@ -202,6 +203,13 @@ def read_payments(
     if end_date:
         query = query.filter(Payment.payment_date <= end_date)
     
+    # Get payments with joined student_fee data
+    query = query.join(StudentFee, Payment.student_fee_id == StudentFee.id)
+    query = query.join(Semester, StudentFee.semester_id == Semester.id)
+    query = query.options(
+        joinedload(Payment.student_fee).joinedload(StudentFee.semester)
+    )
+    
     payments = query.order_by(desc(Payment.payment_date)).offset(skip).limit(limit).all()
     return payments
 
@@ -243,8 +251,12 @@ def create_payment(
     db.add(payment)
     db.flush()
     
-    # Generate receipt number
-    receipt_number = f"RCPT-{payment.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # Get semester information for receipt number
+    semester = student_fee.semester
+    semester_code = semester.name.replace(' ', '').upper()
+    
+    # Generate receipt number with course ID (student_fee_id) and semester info
+    receipt_number = f"RCPT-{payment.id}-{student_fee.id}-{semester_code}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
     # Generate PDF path
     pdf_dir = os.path.join(os.getcwd(), "receipts")
