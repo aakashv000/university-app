@@ -108,10 +108,32 @@ const PaymentsPage: React.FC = () => {
   
   const handleSubmit = async () => {
     try {
-      await dispatch(createPayment(paymentData) as any);
-      handleDialogClose();
+      setLoading(true);
+      const resultAction = await dispatch(createPayment(paymentData) as any);
+      
+      if (createPayment.fulfilled.match(resultAction)) {
+        // Always refresh payments list for all user types
+        if (isStudent) {
+          dispatch(fetchPayments({ student_id: user.id }) as any);
+        } else {
+          // For admin and faculty, fetch all payments
+          dispatch(fetchPayments() as any);
+        }
+        
+        // Refresh student fees data
+        if (paymentData.student_id) {
+          dispatch(fetchStudentFees({ student_id: paymentData.student_id }) as any);
+        }
+        
+        setSuccess('Payment created successfully! A receipt has been generated.');
+        handleDialogClose();
+      }
+      
+      setLoading(false);
     } catch (error) {
       console.error('Failed to create payment:', error);
+      setError('Failed to create payment. Please try again.');
+      setLoading(false);
     }
   };
   

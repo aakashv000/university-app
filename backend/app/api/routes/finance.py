@@ -174,18 +174,25 @@ def read_payments(
     end_date: Optional[datetime] = None,
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Retrieve payments with filtering options.
     """
     query = db.query(Payment)
     
-    # Filter by student_id if provided or if current user is a student
+    # Determine user role
+    is_admin = any(role.name == "admin" for role in current_user.roles)
+    is_faculty = any(role.name == "faculty" for role in current_user.roles)
+    is_student = any(role.name == "student" for role in current_user.roles)
+    
+    # Filter by student_id if provided
     if student_id:
         query = query.filter(Payment.student_id == student_id)
-    elif any(role.name == "student" for role in current_user.roles):
+    # If user is a student and no specific student_id is provided, show only their own payments
+    elif is_student and not (is_admin or is_faculty):
         query = query.filter(Payment.student_id == current_user.id)
+    # Admin and faculty can see all payments if no student_id filter is provided
     
     # Apply other filters
     if student_fee_id:
