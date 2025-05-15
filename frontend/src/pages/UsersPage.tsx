@@ -81,10 +81,10 @@ const UsersPage: React.FC = () => {
     });
   };
 
-  const handleRoleChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+  const handleRoleChange = (event: any) => {
     setUserData({
       ...userData,
-      roles: e.target.value as string[],
+      roles: event.target.value as string[],
     });
   };
 

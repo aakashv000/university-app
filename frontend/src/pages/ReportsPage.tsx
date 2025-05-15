@@ -118,25 +118,31 @@ const ReportsPage: React.FC = () => {
           </Grid>
           
           <Grid item xs={12} md={3}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="Start Date"
-                value={filters.start_date}
-                onChange={(date) => handleDateChange('start_date', date)}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </LocalizationProvider>
+            <TextField
+              fullWidth
+              label="Start Date"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={filters.start_date ? new Date(filters.start_date).toISOString().split('T')[0] : ''}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                handleDateChange('start_date', date);
+              }}
+            />
           </Grid>
           
           <Grid item xs={12} md={3}>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <DatePicker
-                label="End Date"
-                value={filters.end_date}
-                onChange={(date) => handleDateChange('end_date', date)}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </LocalizationProvider>
+            <TextField
+              fullWidth
+              label="End Date"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={filters.end_date ? new Date(filters.end_date).toISOString().split('T')[0] : ''}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                handleDateChange('end_date', date);
+              }}
+            />
           </Grid>
           
           <Grid item xs={12}>
