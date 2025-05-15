@@ -38,8 +38,11 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await dispatch(login(formData) as any);
-      navigate('/');
+      const resultAction = await dispatch(login(formData) as any);
+      if (login.fulfilled.match(resultAction)) {
+        // Only navigate if login was successful
+        navigate('/');
+      }
     } catch (error) {
       console.error('Login failed:', error);
     }

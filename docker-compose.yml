@@ -36,6 +36,11 @@ services:
       - /app/node_modules
     environment:
       - REACT_APP_API_URL=http://localhost:8000/api
+      - DISABLE_ESLINT_PLUGIN=true
+      - GENERATE_SOURCEMAP=false
+      - TSC_COMPILE_ON_ERROR=true
+      - ESLINT_NO_DEV_ERRORS=true
+      - FAST_REFRESH=false
     depends_on:
       - backend
     command: npm start

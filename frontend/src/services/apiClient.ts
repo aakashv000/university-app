@@ -1,17 +1,19 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api',
+  baseURL: 'http://localhost:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  // Add withCredentials to handle CORS with credentials if needed
+  withCredentials: false,
 });
 
 // Request interceptor for adding the auth token
 apiClient.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -21,12 +23,17 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for handling errors
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: AxiosError) => {
+    console.error('API Error:', error.response ? error.response.data : error.message);
+    
     // Handle 401 Unauthorized errors
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Only redirect if not already on login page to avoid redirect loops
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
 import { authService } from '../../services/authService';
 
 interface User {
@@ -24,25 +24,37 @@ const initialState: AuthState = {
   error: null,
 };
 
-export const login = createAsyncThunk(
+export const login = createAsyncThunk<any, { email: string; password: string }>(
   'auth/login',
-  async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
+  async ({ email, password }, { rejectWithValue, dispatch }) => {
     try {
       const response = await authService.login(email, password);
       localStorage.setItem('token', response.access_token);
-      return response;
+      
+      // Immediately fetch user data after successful login
+      try {
+        const user = await authService.getCurrentUser();
+        return { ...response, user };
+      } catch (userError: any) {
+        console.error('Error fetching user data after login:', userError);
+        return response;
+      }
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.detail || 'Login failed');
     }
   }
 );
 
-export const logout = createAsyncThunk('auth/logout', async () => {
+export const logout = createAsyncThunk<null>(
+  'auth/logout', 
+  async () => {
   localStorage.removeItem('token');
   return null;
 });
 
-export const checkAuth = createAsyncThunk('auth/checkAuth', async (_, { rejectWithValue }) => {
+export const checkAuth = createAsyncThunk<any, void>(
+  'auth/checkAuth', 
+  async (_, { rejectWithValue }) => {
   try {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -60,44 +72,48 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    clearError: (state) => {
+    clearError: (state: AuthState) => {
       state.error = null;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: (builder: ActionReducerMapBuilder<AuthState>) => {
     builder
       // Login
-      .addCase(login.pending, (state) => {
+      .addCase(login.pending, (state: AuthState) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(login.fulfilled, (state: AuthState, action: PayloadAction<any>) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.token = action.payload.access_token;
+        // Set user data if it was fetched successfully
+        if (action.payload.user) {
+          state.user = action.payload.user;
+        }
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(login.rejected, (state: AuthState, action: PayloadAction<unknown>) => {
         state.loading = false;
         state.error = action.payload as string;
       })
       
       // Logout
-      .addCase(logout.fulfilled, (state) => {
+      .addCase(logout.fulfilled, (state: AuthState) => {
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
       })
       
       // Check Auth
-      .addCase(checkAuth.pending, (state) => {
+      .addCase(checkAuth.pending, (state: AuthState) => {
         state.loading = true;
       })
-      .addCase(checkAuth.fulfilled, (state, action) => {
+      .addCase(checkAuth.fulfilled, (state: AuthState, action: PayloadAction<any>) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
       })
-      .addCase(checkAuth.rejected, (state) => {
+      .addCase(checkAuth.rejected, (state: AuthState) => {
         state.loading = false;
         state.isAuthenticated = false;
         state.user = null;

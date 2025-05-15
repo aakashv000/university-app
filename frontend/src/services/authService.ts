@@ -2,11 +2,12 @@ import apiClient from './apiClient';
 
 export const authService = {
   async login(email: string, password: string) {
-    const formData = new FormData();
-    formData.append('username', email);
-    formData.append('password', password);
+    // Convert to URLSearchParams which is the correct format for x-www-form-urlencoded
+    const params = new URLSearchParams();
+    params.append('username', email);
+    params.append('password', password);
     
-    const response = await apiClient.post('/auth/login', formData, {
+    const response = await apiClient.post('/auth/login', params, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },

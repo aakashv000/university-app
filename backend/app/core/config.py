@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     SECRET_KEY: str = "YOUR_SECRET_KEY_HERE"  # In production, use a secure random key
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000", "http://localhost", "http://127.0.0.1:3000", "http://127.0.0.1:8000"]
     
     # Database settings
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
