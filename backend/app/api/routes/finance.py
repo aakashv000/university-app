@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from app.core.dependencies import get_db, get_admin_user, get_faculty_user, get_student_user
+from app.core.dependencies import get_db, get_admin_user, get_faculty_user, get_student_user, get_current_active_user
 from app.models.user import User
 from app.models.finance import Semester, FeeStructure, StudentFee, Payment, Receipt
 from app.schemas.finance import (
@@ -253,11 +253,15 @@ def create_payment(
         output_path=pdf_path,
     )
     
+    # Ensure receipts directory exists
+    if not os.path.exists(pdf_dir):
+        os.makedirs(pdf_dir)
+        
     # Create receipt record
     receipt = Receipt(
         payment_id=payment.id,
         receipt_number=receipt_number,
-        pdf_path=pdf_path,
+        pdf_path=pdf_path
     )
     db.add(receipt)
     db.commit()
@@ -269,7 +273,7 @@ def create_payment(
 def download_receipt(
     receipt_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Download receipt PDF.
@@ -293,10 +297,37 @@ def download_receipt(
         )
     
     if not os.path.exists(receipt.pdf_path):
-        raise HTTPException(
-            status_code=404,
-            detail="Receipt file not found",
-        )
+        # If the receipt file doesn't exist, regenerate it
+        try:
+            # Get the necessary data to regenerate the receipt
+            payment = db.query(Payment).filter(Payment.id == receipt.payment_id).first()
+            student = db.query(User).filter(User.id == payment.student_id).first()
+            student_fee = db.query(StudentFee).filter(StudentFee.id == payment.student_fee_id).first()
+            
+            # Ensure receipts directory exists
+            pdf_dir = os.path.join(os.getcwd(), "receipts")
+            if not os.path.exists(pdf_dir):
+                os.makedirs(pdf_dir)
+                
+            # Regenerate the receipt PDF
+            generate_receipt_pdf(
+                payment=payment,
+                student=student,
+                student_fee=student_fee,
+                receipt_number=receipt.receipt_number,
+                output_path=receipt.pdf_path
+            )
+            
+            if not os.path.exists(receipt.pdf_path):
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to generate receipt file",
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error regenerating receipt: {str(e)}",
+            )
     
     return FileResponse(
         path=receipt.pdf_path,
@@ -308,7 +339,7 @@ def download_receipt(
 def get_all_student_receipts(
     student_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Get all receipts for a student.

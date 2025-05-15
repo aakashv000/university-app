@@ -47,6 +47,11 @@ const PaymentsPage: React.FC = () => {
     notes: '',
   });
   
+  // Add state for error and success messages
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isLoading, setLoading] = useState(false);
+  
   const isStudent = user?.roles.some(role => role.name === 'student');
   const isAdmin = user?.roles.some(role => role.name === 'admin');
   
@@ -112,6 +117,7 @@ const PaymentsPage: React.FC = () => {
   
   const handleDownloadReceipt = async (receiptId: number) => {
     try {
+      setLoading(true);
       const blob = await financeService.downloadReceipt(receiptId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -119,23 +125,62 @@ const PaymentsPage: React.FC = () => {
       a.download = `receipt-${receiptId}.pdf`;
       document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      setLoading(false);
     } catch (error) {
       console.error('Failed to download receipt:', error);
+      setError('Failed to download receipt. Please try again.');
+      setLoading(false);
     }
   };
   
   const handlePrintAllReceipts = async () => {
     try {
+      setLoading(true);
       const response = await financeService.getAllStudentReceipts(user.id);
-      // In a real application, we would handle printing all receipts here
-      alert(`Ready to print ${response.receipt_ids.length} receipts`);
+      
+      if (!response.receipt_ids || response.receipt_ids.length === 0) {
+        setError('No receipts found to print.');
+        setLoading(false);
+        return;
+      }
+      
+      // Download each receipt one by one
+      const receiptCount = response.receipt_ids.length;
+      setSuccess(`Found ${receiptCount} receipts. Downloading...`);
+      
+      // Process receipts sequentially to avoid overwhelming the browser
+      for (let i = 0; i < receiptCount; i++) {
+        const receiptId = response.receipt_ids[i];
+        try {
+          const blob = await financeService.downloadReceipt(receiptId);
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `receipt-${receiptId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          // Update progress message
+          setSuccess(`Downloaded ${i + 1} of ${receiptCount} receipts...`);
+        } catch (receiptError) {
+          console.error(`Failed to download receipt ${receiptId}:`, receiptError);
+        }
+      }
+      
+      setSuccess(`Successfully downloaded ${receiptCount} receipts.`);
+      setLoading(false);
     } catch (error) {
       console.error('Failed to get all receipts:', error);
+      setError('Failed to get receipts. Please try again.');
+      setLoading(false);
     }
   };
   
-  if (loading) {
+  if (loading || isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
@@ -168,6 +213,22 @@ const PaymentsPage: React.FC = () => {
           </Button>
         </Box>
       </Box>
+      
+      {error && (
+        <Box sx={{ mb: 2 }}>
+          <Paper sx={{ p: 2, bgcolor: '#ffebee' }}>
+            <Typography color="error">{error}</Typography>
+          </Paper>
+        </Box>
+      )}
+      
+      {success && (
+        <Box sx={{ mb: 2 }}>
+          <Paper sx={{ p: 2, bgcolor: '#e8f5e9' }}>
+            <Typography color="primary">{success}</Typography>
+          </Paper>
+        </Box>
+      )}
       
       {isStudent && studentFees.length > 0 && (
         <Box sx={{ mb: 4 }}>

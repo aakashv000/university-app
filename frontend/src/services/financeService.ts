@@ -29,15 +29,25 @@ export const financeService = {
   },
   
   async downloadReceipt(receiptId: number) {
-    const response = await apiClient.get(`/finance/receipts/${receiptId}/download`, {
-      responseType: 'blob',
-    });
-    return response.data;
+    try {
+      const response = await apiClient.get(`/finance/receipts/${receiptId}/download`, {
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      throw error;
+    }
   },
   
   async getAllStudentReceipts(studentId: number) {
-    const response = await apiClient.get(`/finance/students/${studentId}/receipts`);
-    return response.data;
+    try {
+      const response = await apiClient.get(`/finance/students/${studentId}/receipts`);
+      return response.data;
+    } catch (error) {
+      console.error('Error getting all student receipts:', error);
+      throw error;
+    }
   },
   
   async getFinanceSummary(params = {}) {

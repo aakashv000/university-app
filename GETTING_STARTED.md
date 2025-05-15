@@ -175,6 +175,114 @@ university-app/
 └── run_local.py             # Helper script to run locally
 ```
 
+## Development Commands and Key Points
+
+### Docker Commands (Windows PowerShell)
+
+#### Starting the Application
+```powershell
+# Start all services
+docker-compose up -d
+
+# Start only specific services
+docker-compose up -d backend frontend
+
+# Start with database only
+docker-compose -f docker-compose-db.yml up -d
+```
+
+#### Restarting Services
+```powershell
+# Restart all services
+docker-compose restart
+
+# Restart specific service
+docker-compose restart backend
+docker-compose restart frontend
+```
+
+#### Rebuilding Services
+```powershell
+# Rebuild and restart a service after code changes
+docker-compose up -d --build backend
+docker-compose up -d --build frontend
+```
+
+#### Viewing Logs
+```powershell
+# View logs from all services
+docker-compose logs
+
+# View logs from specific service
+docker-compose logs backend
+docker-compose logs frontend
+
+# Follow logs in real-time
+docker-compose logs -f
+
+# View last 100 lines of logs
+docker logs university-app-backend-1 --tail 100
+```
+
+#### Stopping Services
+```powershell
+# Stop all services
+docker-compose down
+
+# Stop all services and remove volumes
+docker-compose down -v
+```
+
+### API Testing
+
+#### Authentication
+```powershell
+# Login and get token
+$response = Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/x-www-form-urlencoded" -Body "username=admin@university.edu&password=admin123"
+$token = $response.access_token
+
+# Use token for authenticated requests
+Invoke-RestMethod -Uri "http://localhost:8000/api/auth/me" -Method Get -Headers @{Authorization = "Bearer $token"}
+```
+
+#### Testing Receipt Downloads
+```powershell
+# Get all receipts for a student
+$token = (Invoke-RestMethod -Uri "http://localhost:8000/api/auth/login" -Method Post -ContentType "application/x-www-form-urlencoded" -Body "username=student1@university.edu&password=student123").access_token
+Invoke-RestMethod -Uri "http://localhost:8000/api/finance/students/3/receipts" -Method Get -Headers @{Authorization = "Bearer $token"}
+
+# Download a receipt
+Invoke-WebRequest -Uri "http://localhost:8000/api/finance/receipts/1/download" -Method Get -Headers @{Authorization = "Bearer $token"} -OutFile "receipt.pdf"
+```
+
+### Key Development Points
+
+1. **Database Migrations**
+   - Alembic migrations are in `backend/alembic/`
+   - Run migrations automatically when the backend starts
+   - For manual migrations: `docker-compose exec backend alembic upgrade head`
+
+2. **Environment Variables**
+   - Backend environment variables are in `backend/.env`
+   - Frontend environment variables are in `frontend/.env`
+   - Docker environment variables are in `docker-compose.yml`
+
+3. **Authentication Flow**
+   - JWT tokens are used for authentication
+   - Tokens expire after 30 minutes by default
+   - Role-based access control is implemented
+
+4. **Common Issues and Solutions**
+   - If login doesn't work, check backend logs for authentication errors
+   - If receipts can't be downloaded, ensure the receipts directory exists
+   - For CORS issues, check the allowed origins in `backend/app/core/config.py`
+   - For database connection issues, verify PostgreSQL is running and credentials are correct
+
+5. **Type Safety**
+   - Frontend uses TypeScript with strict mode enabled
+   - Backend uses Pydantic models for request/response validation
+   - Always maintain type safety when making changes
+
 ## Next Steps
 
 1. **Customize the application** to fit your specific university needs
