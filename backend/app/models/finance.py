@@ -79,7 +79,6 @@ class Receipt(Base):
     payment_id = Column(Integer, ForeignKey("payments.id"), unique=True, nullable=False)
     receipt_number = Column(String, unique=True, nullable=False)
     generated_at = Column(DateTime(timezone=True), server_default=func.now())
-    pdf_path = Column(String)
     
     # Relationships
     payment = relationship("Payment", back_populates="receipt")

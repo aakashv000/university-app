@@ -1,8 +1,8 @@
 from typing import Any, List, Optional
 from datetime import datetime
 import os
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Body, UploadFile, File
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy.orm import joinedload
@@ -321,29 +321,10 @@ def create_payment(
     # Generate receipt number with course code and semester info
     receipt_number = f"RCPT-{payment.id}-{course_code}-{semester_code}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
-    # Generate PDF path
-    pdf_dir = os.path.join(os.getcwd(), "receipts")
-    os.makedirs(pdf_dir, exist_ok=True)
-    pdf_path = os.path.join(pdf_dir, f"{receipt_number}.pdf")
-    
-    # Generate receipt PDF
-    generate_receipt_pdf(
-        payment=payment,
-        student=student,
-        student_fee=student_fee,
-        receipt_number=receipt_number,
-        output_path=pdf_path,
-    )
-    
-    # Ensure receipts directory exists
-    if not os.path.exists(pdf_dir):
-        os.makedirs(pdf_dir)
-        
-    # Create receipt record
+    # Create receipt record (without generating PDF)
     receipt = Receipt(
         payment_id=payment.id,
-        receipt_number=receipt_number,
-        pdf_path=pdf_path
+        receipt_number=receipt_number
     )
     db.add(receipt)
     db.commit()
@@ -378,44 +359,34 @@ def download_receipt(
             detail="Not enough permissions to access this receipt",
         )
     
-    if not os.path.exists(receipt.pdf_path):
-        # If the receipt file doesn't exist, regenerate it
-        try:
-            # Get the necessary data to regenerate the receipt
-            payment = db.query(Payment).filter(Payment.id == receipt.payment_id).first()
-            student = db.query(User).filter(User.id == payment.student_id).first()
-            student_fee = db.query(StudentFee).filter(StudentFee.id == payment.student_fee_id).first()
-            
-            # Ensure receipts directory exists
-            pdf_dir = os.path.join(os.getcwd(), "receipts")
-            if not os.path.exists(pdf_dir):
-                os.makedirs(pdf_dir)
-                
-            # Regenerate the receipt PDF
-            generate_receipt_pdf(
-                payment=payment,
-                student=student,
-                student_fee=student_fee,
-                receipt_number=receipt.receipt_number,
-                output_path=receipt.pdf_path
-            )
-            
-            if not os.path.exists(receipt.pdf_path):
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to generate receipt file",
-                )
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error regenerating receipt: {str(e)}",
-            )
-    
-    return FileResponse(
-        path=receipt.pdf_path,
-        filename=f"{receipt.receipt_number}.pdf",
-        media_type="application/pdf"
-    )
+    # Generate the receipt PDF on-the-fly
+    try:
+        # Get the necessary data to generate the receipt
+        payment = db.query(Payment).filter(Payment.id == receipt.payment_id).first()
+        student = db.query(User).filter(User.id == payment.student_id).first()
+        student_fee = db.query(StudentFee).filter(StudentFee.id == payment.student_fee_id).first()
+        
+        # Generate the receipt PDF in memory
+        pdf_buffer = generate_receipt_pdf(
+            payment=payment,
+            student=student,
+            student_fee=student_fee,
+            receipt_number=receipt.receipt_number
+        )
+        
+        # Return the PDF directly from memory
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                'Content-Disposition': f'attachment; filename="receipt-{receipt.id}.pdf"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating receipt: {str(e)}",
+        )
 
 @router.get("/students/{student_id}/receipts")
 def get_all_student_receipts(

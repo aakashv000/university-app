@@ -121,7 +121,6 @@ class Payment(PaymentInDBBase):
 class ReceiptBase(BaseModel):
     payment_id: int
     receipt_number: str
-    pdf_path: Optional[str] = None
 
 class ReceiptCreate(ReceiptBase):
     pass

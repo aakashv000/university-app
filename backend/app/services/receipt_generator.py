@@ -4,8 +4,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from datetime import datetime
+import io
 
-def generate_receipt_pdf(payment, student, student_fee, receipt_number, output_path):
+def generate_receipt_pdf(payment, student, student_fee, receipt_number, output_path=None):
     """
     Generate a PDF receipt for a payment
     """
@@ -82,7 +83,15 @@ def generate_receipt_pdf(payment, student, student_fee, receipt_number, output_p
     elements.append(Paragraph("Thank you for your payment.", normal_style))
     elements.append(Paragraph("This is a computer-generated receipt and does not require a signature.", normal_style))
     
-    # Build the PDF
-    doc.build(elements)
-    
-    return output_path
+    # If output_path is provided, save to disk
+    if output_path:
+        # Build the PDF to disk
+        doc.build(elements)
+        return output_path
+    else:
+        # Build the PDF to memory
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
