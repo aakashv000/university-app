@@ -19,7 +19,7 @@ class User(Base):
     
     # Relationships
     roles = relationship("Role", secondary=user_role, back_populates="users")
-    courses = relationship("Course", secondary="student_courses", back_populates="students")
+    courses = relationship("Course", secondary=student_course, back_populates="students")
     student_fees = relationship("StudentFee", back_populates="student")
     payments = relationship("Payment", back_populates="student")
 

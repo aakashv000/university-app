@@ -7,8 +7,15 @@ export const financeService = {
   },
   
   async getStudentFees(params = {}) {
-    const response = await apiClient.get('/finance/student-fees', { params });
-    return response.data;
+    try {
+      console.log('Calling student-fees endpoint with params:', params);
+      const response = await apiClient.get('/finance/student-fees', { params });
+      console.log('Student fees response data:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error in getStudentFees:', error);
+      throw error;
+    }
   },
   
   async getPayments(params = {}) {

@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from app.schemas.academic import Institute, Course
+from app.schemas.user import User
 
 # Semester schemas
 class SemesterBase(BaseModel):
@@ -77,6 +78,7 @@ class StudentFeeInDBBase(StudentFeeBase):
 class StudentFee(StudentFeeInDBBase):
     course: Optional[Course] = None
     semester: Optional[Semester] = None
+    student: Optional[User] = None
     
     @property
     def course_name(self) -> str:
@@ -85,6 +87,10 @@ class StudentFee(StudentFeeInDBBase):
     @property
     def institute_name(self) -> str:
         return self.course.institute.name if self.course and self.course.institute else "N/A"
+        
+    @property
+    def student_name(self) -> str:
+        return self.student.full_name if self.student else "N/A"
 
 # Payment schemas
 class PaymentBase(BaseModel):

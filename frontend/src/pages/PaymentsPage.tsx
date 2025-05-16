@@ -37,6 +37,10 @@ const PaymentsPage: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const { payments, studentFees, loading } = useSelector((state: RootState) => state.finance);
   
+  // State for all student fees (for admin dropdown)
+  const [allStudentFees, setAllStudentFees] = useState<any[]>([]);
+  const [loadingFees, setLoadingFees] = useState(false);
+  
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentData, setPaymentData] = useState({
     student_id: 0,
@@ -61,8 +65,26 @@ const PaymentsPage: React.FC = () => {
       dispatch(fetchStudentFees({ student_id: user.id }) as any);
     } else {
       dispatch(fetchPayments() as any);
+      
+      // For admin, fetch all student fees
+      if (isAdmin) {
+        const fetchAllStudentFees = async () => {
+          try {
+            setLoadingFees(true);
+            console.log('Fetching all student fees for admin...');
+            const response = await financeService.getStudentFees();
+            console.log('Student fees response:', response);
+            setAllStudentFees(response);
+          } catch (err) {
+            console.error('Error fetching all student fees:', err);
+          } finally {
+            setLoadingFees(false);
+          }
+        };
+        fetchAllStudentFees();
+      }
     }
-  }, [dispatch, user, isStudent]);
+  }, [dispatch, user, isStudent, isAdmin]);
   
   const handleDialogOpen = () => {
     setDialogOpen(true);
@@ -95,7 +117,9 @@ const PaymentsPage: React.FC = () => {
     
     // If student fee is selected, set the amount
     if (name === 'student_fee_id') {
-      const selectedFee = studentFees.find(fee => fee.id === value);
+      // For students, use studentFees; for admins, use allStudentFees
+      const feesToSearch = isStudent ? studentFees : allStudentFees;
+      const selectedFee = feesToSearch.find((fee: any) => fee.id === Number(value));
       if (selectedFee) {
         setPaymentData({
           ...paymentData,
@@ -378,16 +402,34 @@ const PaymentsPage: React.FC = () => {
               </Select>
             </FormControl>
           ) : (
-            <TextField
-              margin="dense"
-              label="Fee ID"
-              type="number"
-              fullWidth
-              name="student_fee_id"
-              value={paymentData.student_fee_id}
-              onChange={handleChange}
-              required
-            />
+            <FormControl fullWidth margin="dense">
+              <InputLabel>Student Fee</InputLabel>
+              <Select
+                name="student_fee_id"
+                value={paymentData.student_fee_id}
+                onChange={handleChange}
+                required
+              >
+                {loadingFees ? (
+                  <MenuItem disabled value="">
+                    Loading student fees...
+                  </MenuItem>
+                ) : allStudentFees.length > 0 ? (
+                  allStudentFees.map((fee) => (
+                    <MenuItem key={fee.id} value={fee.id}>
+                      {fee.student?.full_name || `Student ID: ${fee.student_id}`} | 
+                      {fee.course?.name || 'No Course'} | 
+                      {fee.semester?.name || 'No Semester'} | 
+                      ${fee.amount.toFixed(2)}
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled value="">
+                    No student fees available
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
           )}
           
           <TextField

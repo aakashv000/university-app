@@ -120,22 +120,40 @@ def read_student_fees(
     semester_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
-    current_user: User = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> Any:
     """
     Retrieve student fees. Admin and faculty can see all, students can only see their own.
     """
     query = db.query(StudentFee)
     
+    # Determine user role
+    is_admin = any(role.name == "admin" for role in current_user.roles)
+    is_student = any(role.name == "student" for role in current_user.roles)
+    
     # Filter by student_id if provided or if current user is a student
     if student_id:
         query = query.filter(StudentFee.student_id == student_id)
-    elif any(role.name == "student" for role in current_user.roles):
+    elif is_student:
         query = query.filter(StudentFee.student_id == current_user.id)
+    # Admin can see all student fees
     
     # Filter by semester_id if provided
     if semester_id:
         query = query.filter(StudentFee.semester_id == semester_id)
+    
+    # Join related entities for complete information
+    query = query.join(Semester, StudentFee.semester_id == Semester.id)
+    query = query.join(Course, StudentFee.course_id == Course.id)
+    query = query.join(Institute, Course.institute_id == Institute.id)
+    query = query.join(User, StudentFee.student_id == User.id)
+    
+    # Load all related entities
+    query = query.options(
+        joinedload(StudentFee.semester),
+        joinedload(StudentFee.course).joinedload(Course.institute),
+        joinedload(StudentFee.student)
+    )
     
     student_fees = query.offset(skip).limit(limit).all()
     return student_fees
