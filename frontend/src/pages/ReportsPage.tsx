@@ -15,6 +15,7 @@ import {
   Button,
   CircularProgress,
   Divider,
+  SelectChangeEvent
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -36,10 +37,18 @@ const ReportsPage: React.FC = () => {
   
   useEffect(() => {
     dispatch(fetchSemesters() as any);
-    dispatch(fetchFinanceSummary() as any);
+    dispatch(fetchFinanceSummary({}) as any);
   }, [dispatch]);
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+  const handleTextFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFilters({
+      ...filters,
+      [name as string]: value,
+    });
+  };
+  
+  const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
     setFilters({
       ...filters,
@@ -93,7 +102,7 @@ const ReportsPage: React.FC = () => {
               label="Student ID"
               name="student_id"
               value={filters.student_id}
-              onChange={handleChange}
+              onChange={handleTextFieldChange}
               type="number"
             />
           </Grid>
@@ -104,7 +113,7 @@ const ReportsPage: React.FC = () => {
               <Select
                 name="semester_id"
                 value={filters.semester_id}
-                onChange={handleChange}
+                onChange={handleSelectChange}
                 label="Semester"
               >
                 <MenuItem value="">All Semesters</MenuItem>

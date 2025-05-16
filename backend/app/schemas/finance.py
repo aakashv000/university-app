@@ -53,12 +53,38 @@ class FeeStructureInDBBase(FeeStructureBase):
 class FeeStructure(FeeStructureInDBBase):
     semester: Semester
 
+# StandardFee schemas
+class StandardFeeBase(BaseModel):
+    course_id: int
+    semester_id: int
+    amount: float
+    name: str
+    description: Optional[str] = None
+
+class StandardFeeCreate(StandardFeeBase):
+    pass
+
+class StandardFeeUpdate(StandardFeeBase):
+    pass
+
+class StandardFeeInDBBase(StandardFeeBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+class StandardFee(StandardFeeInDBBase):
+    course: Optional[Course] = None
+    semester: Optional[Semester] = None
+
 # StudentFee schemas
 class StudentFeeBase(BaseModel):
     student_id: int
     course_id: int
     semester_id: int
-    amount: float
+    amount: Optional[float] = None
     description: Optional[str] = None
 
 class StudentFeeCreate(StudentFeeBase):

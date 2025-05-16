@@ -1,42 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  Box,
+  Button,
+  Container,
   Typography,
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Button,
+  Paper,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
   Select,
   MenuItem,
-  CircularProgress,
+  FormControl,
+  InputLabel,
+  Alert,
   Grid,
+  Box,
+  CircularProgress,
   Card,
   CardContent,
   CardHeader,
   Divider,
+  FormControlLabel,
+  Checkbox,
+  SelectChangeEvent
 } from '@mui/material';
 
 import { RootState } from '../store';
 import { fetchSemesters, fetchStudentFees } from '../features/finance/financeSlice';
 import apiClient from '../services/apiClient';
 
-interface StudentFeeFormData {
+interface FeeFormData {
   student_id: number;
+  course_id: number;
   semester_id: number;
   amount: number;
   description: string;
+  use_standard_fee: boolean;
 }
 
 const FeesPage: React.FC = () => {
@@ -44,11 +51,13 @@ const FeesPage: React.FC = () => {
   const { semesters, studentFees, loading } = useSelector((state: RootState) => state.finance);
   
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [feeData, setFeeData] = useState<StudentFeeFormData>({
+  const [feeData, setFeeData] = useState<FeeFormData>({
     student_id: 0,
+    course_id: 0,
     semester_id: 0,
     amount: 0,
     description: '',
+    use_standard_fee: false,
   });
   
   useEffect(() => {
@@ -64,23 +73,64 @@ const FeesPage: React.FC = () => {
     setDialogOpen(false);
     setFeeData({
       student_id: 0,
+      course_id: 0,
       semester_id: 0,
       amount: 0,
       description: '',
+      use_standard_fee: false,
     });
   };
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+  const handleTextFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, checked } = e.target;
+    
+    if (name === 'use_standard_fee') {
+      setFeeData({
+        ...feeData,
+        use_standard_fee: checked,
+        // Clear amount if using standard fee
+        amount: checked ? 0 : feeData.amount
+      });
+    } else {
+      setFeeData({
+        ...feeData,
+        [name]: value
+      });
+    }
+  };
+  
+  const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
     setFeeData({
       ...feeData,
-      [name as string]: value,
+      [name as string]: value
     });
   };
   
   const handleSubmit = async () => {
     try {
-      await apiClient.post('/finance/student-fees', feeData);
+      // Validate required fields
+      if (!feeData.student_id || !feeData.semester_id) {
+        console.error('Please fill all required fields');
+        return;
+      }
+      
+      // If not using standard fee, amount is required
+      if (!feeData.use_standard_fee && !feeData.amount) {
+        console.error('Please enter an amount or use standard fee');
+        return;
+      }
+      
+      // Create submission data, omitting amount if using standard fee
+      const submissionData = {
+        ...feeData,
+        amount: feeData.use_standard_fee ? undefined : feeData.amount
+      };
+      
+      // Remove use_standard_fee as it's not part of the API
+      delete submissionData.use_standard_fee;
+      
+      await apiClient.post('/finance/student-fees', submissionData);
       dispatch(fetchStudentFees() as any);
       handleDialogClose();
     } catch (error) {
@@ -172,7 +222,7 @@ const FeesPage: React.FC = () => {
             fullWidth
             name="student_id"
             value={feeData.student_id}
-            onChange={handleChange}
+            onChange={handleTextFieldChange}
             required
           />
           
@@ -181,7 +231,7 @@ const FeesPage: React.FC = () => {
             <Select
               name="semester_id"
               value={feeData.semester_id}
-              onChange={handleChange}
+              onChange={handleSelectChange}
               required
             >
               {semesters.map((semester) => (
@@ -199,8 +249,20 @@ const FeesPage: React.FC = () => {
             fullWidth
             name="amount"
             value={feeData.amount}
-            onChange={handleChange}
-            required
+            onChange={handleTextFieldChange}
+            required={!feeData.use_standard_fee}
+            disabled={feeData.use_standard_fee}
+          />
+          
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={feeData.use_standard_fee}
+                onChange={handleTextFieldChange}
+                name="use_standard_fee"
+              />
+            }
+            label="Use standard fee amount (if available)"
           />
           
           <TextField
@@ -211,7 +273,7 @@ const FeesPage: React.FC = () => {
             rows={2}
             name="description"
             value={feeData.description}
-            onChange={handleChange}
+            onChange={handleTextFieldChange}
           />
         </DialogContent>
         <DialogActions>
@@ -222,7 +284,7 @@ const FeesPage: React.FC = () => {
             disabled={
               !feeData.student_id ||
               !feeData.semester_id ||
-              !feeData.amount
+              (!feeData.use_standard_fee && !feeData.amount)
             }
           >
             Assign Fee

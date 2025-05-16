@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql import func
@@ -37,6 +37,27 @@ class FeeStructure(Base):
     # Relationships
     semester = relationship("Semester", back_populates="fee_structures")
 
+class StandardFee(Base):
+    __tablename__ = "standard_fees"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    course = relationship("Course")
+    semester = relationship("Semester")
+    
+    # Composite unique constraint to ensure only one standard fee per course-semester
+    __table_args__ = (
+        UniqueConstraint('course_id', 'semester_id', name='uix_standard_fee_course_semester'),
+    )
+
 class StudentFee(Base):
     __tablename__ = "student_fees"
 
@@ -44,7 +65,7 @@ class StudentFee(Base):
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Float, nullable=True)  # Made nullable to support using standard fees
     description = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

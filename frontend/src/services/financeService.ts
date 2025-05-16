@@ -18,6 +18,44 @@ export const financeService = {
     }
   },
   
+  async getStandardFees(params: Record<string, any> = {}) {
+    try {
+      const response = await apiClient.get('/finance/standard-fees', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error in getStandardFees:', error);
+      throw error;
+    }
+  },
+  
+  async createStandardFee(feeData: {
+    course_id: number;
+    semester_id: number;
+    amount: number;
+    name: string;
+    description?: string;
+  }) {
+    const response = await apiClient.post('/finance/standard-fees', feeData);
+    return response.data;
+  },
+  
+  async updateStandardFee(feeId: number, feeData: {
+    course_id: number;
+    semester_id: number;
+    amount: number;
+    name: string;
+    description?: string;
+  }) {
+    const response = await apiClient.put(`/finance/standard-fees/${feeId}`, feeData);
+    return response.data;
+  },
+  
+  async deleteStandardFee(feeId: number) {
+    await apiClient.delete(`/finance/standard-fees/${feeId}`);
+    // No need to return data for a 204 response
+    return;
+  },
+  
   async getPayments(params = {}) {
     const response = await apiClient.get('/finance/payments', { params });
     return response.data;

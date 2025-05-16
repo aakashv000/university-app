@@ -10,14 +10,15 @@ from sqlalchemy.orm import joinedload
 from app.core.dependencies import get_db, get_admin_user, get_faculty_user, get_student_user, get_current_active_user
 from app.models.user import User
 from app.models.academic import Institute, Course
-from app.models.finance import Semester, FeeStructure, StudentFee, Payment, Receipt
+from app.models.finance import Semester as SemesterModel, FeeStructure, StudentFee, Payment, Receipt, StandardFee
 from app.schemas.finance import (
     Semester as SemesterSchema, SemesterCreate, SemesterUpdate,
     FeeStructure as FeeStructureSchema, FeeStructureCreate, FeeStructureUpdate,
     StudentFee as StudentFeeSchema, StudentFeeCreate, StudentFeeUpdate,
     Payment as PaymentSchema, PaymentCreate, PaymentUpdate,
     Receipt as ReceiptSchema, ReceiptCreate,
-    PaymentWithReceipt, StudentFeeWithPayments
+    PaymentWithReceipt, StudentFeeWithPayments,
+    StandardFee as StandardFeeSchema, StandardFeeCreate, StandardFeeUpdate
 )
 from app.services.receipt_generator import generate_receipt_pdf
 
@@ -33,7 +34,7 @@ def read_semesters(
     """
     Retrieve semesters.
     """
-    semesters = db.query(Semester).offset(skip).limit(limit).all()
+    semesters = db.query(SemesterModel).offset(skip).limit(limit).all()
     return semesters
 
 @router.post("/semesters", response_model=SemesterSchema)
@@ -54,7 +55,7 @@ def create_semester(
             detail="The course with this id does not exist",
         )
         
-    semester = Semester(
+    semester = SemesterModel(
         course_id=semester_in.course_id,
         name=semester_in.name,
         type=semester_in.type,
@@ -94,7 +95,7 @@ def create_fee_structure(
     """
     Create new fee structure. Admin only.
     """
-    semester = db.query(Semester).filter(Semester.id == fee_structure_in.semester_id).first()
+    semester = db.query(SemesterModel).filter(SemesterModel.id == fee_structure_in.semester_id).first()
     if not semester:
         raise HTTPException(
             status_code=404,
@@ -111,6 +112,191 @@ def create_fee_structure(
     db.commit()
     db.refresh(fee_structure)
     return fee_structure
+
+# Standard Fee endpoints
+@router.get("/standard-fees", response_model=List[StandardFeeSchema])
+def read_standard_fees(
+    db: Session = Depends(get_db),
+    course_id: Optional[int] = None,
+    semester_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Retrieve standard fees. Admin and faculty can see all.
+    """
+    # Check if user has admin or faculty role
+    is_admin_or_faculty = any(role.name in ["admin", "faculty"] for role in current_user.roles)
+    if not is_admin_or_faculty:
+        raise HTTPException(
+            status_code=403,
+            detail="Not enough permissions to access standard fees",
+        )
+    
+    query = db.query(StandardFee)
+    
+    # Apply filters if provided
+    if course_id:
+        query = query.filter(StandardFee.course_id == course_id)
+    if semester_id:
+        query = query.filter(StandardFee.semester_id == semester_id)
+    
+    # Join related entities
+    query = query.join(Course, StandardFee.course_id == Course.id)
+    query = query.join(SemesterModel, StandardFee.semester_id == SemesterModel.id)
+    query = query.join(Institute, Course.institute_id == Institute.id)
+    
+    # Load all related entities
+    query = query.options(
+        joinedload(StandardFee.course).joinedload(Course.institute),
+        joinedload(StandardFee.semester)
+    )
+    
+    standard_fees = query.offset(skip).limit(limit).all()
+    return standard_fees
+
+@router.post("/standard-fees", response_model=StandardFeeSchema)
+def create_standard_fee(
+    *,
+    db: Session = Depends(get_db),
+    standard_fee_in: StandardFeeCreate,
+    current_user: User = Depends(get_admin_user),
+) -> Any:
+    """
+    Create new standard fee. Admin only.
+    """
+    # Check if course exists
+    course = db.query(Course).filter(Course.id == standard_fee_in.course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="The course with this id does not exist",
+        )
+    
+    # Check if semester exists
+    semester = db.query(SemesterModel).filter(SemesterModel.id == standard_fee_in.semester_id).first()
+    if not semester:
+        raise HTTPException(
+            status_code=404,
+            detail="The semester with this id does not exist",
+        )
+    
+    # Check if semester belongs to the course
+    if semester.course_id != standard_fee_in.course_id:
+        raise HTTPException(
+            status_code=400,
+            detail="The semester does not belong to the specified course",
+        )
+    
+    # Check if a standard fee already exists for this course-semester combination
+    existing_fee = db.query(StandardFee).filter(
+        StandardFee.course_id == standard_fee_in.course_id,
+        StandardFee.semester_id == standard_fee_in.semester_id
+    ).first()
+    
+    if existing_fee:
+        raise HTTPException(
+            status_code=400,
+            detail="A standard fee already exists for this course-semester combination",
+        )
+    
+    standard_fee = StandardFee(
+        course_id=standard_fee_in.course_id,
+        semester_id=standard_fee_in.semester_id,
+        amount=standard_fee_in.amount,
+        name=standard_fee_in.name,
+        description=standard_fee_in.description,
+    )
+    db.add(standard_fee)
+    db.commit()
+    db.refresh(standard_fee)
+    return standard_fee
+
+@router.put("/standard-fees/{standard_fee_id}", response_model=StandardFeeSchema)
+def update_standard_fee(
+    *,
+    db: Session = Depends(get_db),
+    standard_fee_id: int,
+    standard_fee_in: StandardFeeUpdate,
+    current_user: User = Depends(get_admin_user),
+) -> Any:
+    """
+    Update standard fee. Admin only.
+    """
+    standard_fee = db.query(StandardFee).filter(StandardFee.id == standard_fee_id).first()
+    if not standard_fee:
+        raise HTTPException(
+            status_code=404,
+            detail="Standard fee not found",
+        )
+    
+    # Check if course exists
+    course = db.query(Course).filter(Course.id == standard_fee_in.course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="The course with this id does not exist",
+        )
+    
+    # Check if semester exists
+    semester = db.query(SemesterModel).filter(SemesterModel.id == standard_fee_in.semester_id).first()
+    if not semester:
+        raise HTTPException(
+            status_code=404,
+            detail="The semester with this id does not exist",
+        )
+    
+    # Check if semester belongs to the course
+    if semester.course_id != standard_fee_in.course_id:
+        raise HTTPException(
+            status_code=400,
+            detail="The semester does not belong to the specified course",
+        )
+    
+    # Check if updating to a combination that already exists (excluding this record)
+    if (standard_fee.course_id != standard_fee_in.course_id or 
+        standard_fee.semester_id != standard_fee_in.semester_id):
+        existing_fee = db.query(StandardFee).filter(
+            StandardFee.course_id == standard_fee_in.course_id,
+            StandardFee.semester_id == standard_fee_in.semester_id,
+            StandardFee.id != standard_fee_id
+        ).first()
+        
+        if existing_fee:
+            raise HTTPException(
+                status_code=400,
+                detail="A standard fee already exists for this course-semester combination",
+            )
+    
+    # Update fields
+    for field in standard_fee_in.__dict__:
+        if field != "id" and hasattr(standard_fee, field):
+            setattr(standard_fee, field, getattr(standard_fee_in, field))
+    
+    db.commit()
+    db.refresh(standard_fee)
+    return standard_fee
+
+@router.delete("/standard-fees/{standard_fee_id}", status_code=204, response_model=None)
+def delete_standard_fee(
+    *,
+    db: Session = Depends(get_db),
+    standard_fee_id: int,
+    current_user: User = Depends(get_admin_user),
+) -> None:
+    """
+    Delete standard fee. Admin only.
+    """
+    standard_fee = db.query(StandardFee).filter(StandardFee.id == standard_fee_id).first()
+    if not standard_fee:
+        raise HTTPException(
+            status_code=404,
+            detail="Standard fee not found",
+        )
+    
+    db.delete(standard_fee)
+    db.commit()
 
 # Student Fee endpoints
 @router.get("/student-fees", response_model=List[StudentFeeSchema])
@@ -143,7 +329,7 @@ def read_student_fees(
         query = query.filter(StudentFee.semester_id == semester_id)
     
     # Join related entities for complete information
-    query = query.join(Semester, StudentFee.semester_id == Semester.id)
+    query = query.join(SemesterModel, StudentFee.semester_id == SemesterModel.id)
     query = query.join(Course, StudentFee.course_id == Course.id)
     query = query.join(Institute, Course.institute_id == Institute.id)
     query = query.join(User, StudentFee.student_id == User.id)
@@ -185,7 +371,7 @@ def create_student_fee(
         )
     
     # Check if semester exists
-    semester = db.query(Semester).filter(Semester.id == student_fee_in.semester_id).first()
+    semester = db.query(SemesterModel).filter(SemesterModel.id == student_fee_in.semester_id).first()
     if not semester:
         raise HTTPException(
             status_code=404,
@@ -206,12 +392,32 @@ def create_student_fee(
             detail="The student is not enrolled in this course",
         )
     
+    # If amount is not provided, try to get it from standard fee
+    amount = student_fee_in.amount
+    description = student_fee_in.description
+    
+    if amount is None:
+        # Look up the standard fee for this course-semester combination
+        standard_fee = db.query(StandardFee).filter(
+            StandardFee.course_id == student_fee_in.course_id,
+            StandardFee.semester_id == student_fee_in.semester_id
+        ).first()
+        
+        if standard_fee:
+            amount = standard_fee.amount
+            description = description or standard_fee.description
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="No amount provided and no standard fee found for this course-semester combination",
+            )
+    
     student_fee = StudentFee(
         student_id=student_fee_in.student_id,
         course_id=student_fee_in.course_id,
         semester_id=student_fee_in.semester_id,
-        amount=student_fee_in.amount,
-        description=student_fee_in.description,
+        amount=amount,
+        description=description,
     )
     db.add(student_fee)
     db.commit()
@@ -258,7 +464,7 @@ def read_payments(
     
     # Get payments with joined student_fee data including course and institute
     query = query.join(StudentFee, Payment.student_fee_id == StudentFee.id)
-    query = query.join(Semester, StudentFee.semester_id == Semester.id)
+    query = query.join(SemesterModel, StudentFee.semester_id == SemesterModel.id)
     query = query.join(Course, StudentFee.course_id == Course.id)
     query = query.join(Institute, Course.institute_id == Institute.id)
     

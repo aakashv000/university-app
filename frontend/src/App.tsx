@@ -11,6 +11,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import FeesPage from './pages/FeesPage';
+import StandardFeesPage from './pages/StandardFeesPage';
 import PaymentsPage from './pages/PaymentsPage';
 import ReportsPage from './pages/ReportsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -54,6 +55,12 @@ const App: React.FC = () => {
         <Route path="/fees" element={
           <ProtectedRoute requiredRole={["admin", "faculty"]}>
             <FeesPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/standard-fees" element={
+          <ProtectedRoute requiredRole="admin">
+            <StandardFeesPage />
           </ProtectedRoute>
         } />
         

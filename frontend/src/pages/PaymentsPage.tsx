@@ -25,6 +25,7 @@ import {
   Card,
   CardContent,
   CardActions,
+  SelectChangeEvent
 } from '@mui/material';
 import { Download as DownloadIcon, Print as PrintIcon } from '@mui/icons-material';
 
@@ -108,7 +109,15 @@ const PaymentsPage: React.FC = () => {
     });
   };
   
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+  const handleTextFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPaymentData({
+      ...paymentData,
+      [name as string]: value,
+    });
+  };
+  
+  const handleSelectChange = (e: SelectChangeEvent) => {
     const { name, value } = e.target;
     setPaymentData({
       ...paymentData,
@@ -432,7 +441,7 @@ const PaymentsPage: React.FC = () => {
               fullWidth
               name="student_id"
               value={paymentData.student_id}
-              onChange={handleChange}
+              onChange={handleTextFieldChange}
               required
             />
           )}
@@ -443,7 +452,7 @@ const PaymentsPage: React.FC = () => {
               <Select
                 name="student_fee_id"
                 value={paymentData.student_fee_id}
-                onChange={handleChange}
+                onChange={handleSelectChange}
                 required
               >
                 {studentFees.map((fee) => (
@@ -459,7 +468,7 @@ const PaymentsPage: React.FC = () => {
               <Select
                 name="student_fee_id"
                 value={paymentData.student_fee_id}
-                onChange={handleChange}
+                onChange={handleSelectChange}
                 required
               >
                 {loadingFees ? (
@@ -491,7 +500,7 @@ const PaymentsPage: React.FC = () => {
             fullWidth
             name="amount"
             value={paymentData.amount}
-            onChange={handleChange}
+            onChange={handleTextFieldChange}
             required
           />
           
@@ -500,7 +509,7 @@ const PaymentsPage: React.FC = () => {
             <Select
               name="payment_method"
               value={paymentData.payment_method}
-              onChange={handleChange}
+              onChange={handleSelectChange}
               required
             >
               <MenuItem value="Credit Card">Credit Card</MenuItem>
@@ -516,7 +525,7 @@ const PaymentsPage: React.FC = () => {
             fullWidth
             name="transaction_id"
             value={paymentData.transaction_id}
-            onChange={handleChange}
+            onChange={handleTextFieldChange}
           />
           
           <TextField
@@ -527,7 +536,7 @@ const PaymentsPage: React.FC = () => {
             rows={2}
             name="notes"
             value={paymentData.notes}
-            onChange={handleChange}
+            onChange={handleTextFieldChange}
           />
         </DialogContent>
         <DialogActions>

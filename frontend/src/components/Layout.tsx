@@ -68,6 +68,7 @@ const Layout: React.FC = () => {
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Users', icon: <PeopleIcon />, path: '/users', roles: ['admin'] },
     { text: 'Fees', icon: <MoneyIcon />, path: '/fees', roles: ['admin', 'faculty'] },
+    { text: 'Standard Fees', icon: <MoneyIcon />, path: '/standard-fees', roles: ['admin'] },
     { text: 'Payments', icon: <ReceiptIcon />, path: '/payments' },
     { text: 'Reports', icon: <AssessmentIcon />, path: '/reports', roles: ['admin', 'faculty'] },
   ];
