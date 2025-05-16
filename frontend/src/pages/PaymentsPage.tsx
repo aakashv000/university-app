@@ -26,7 +26,7 @@ import {
   CardContent,
   CardActions,
 } from '@mui/material';
-import { Download as DownloadIcon } from '@mui/icons-material';
+import { Download as DownloadIcon, Print as PrintIcon } from '@mui/icons-material';
 
 import { RootState } from '../store';
 import { fetchPayments, fetchStudentFees, createPayment } from '../features/finance/financeSlice';
@@ -130,6 +130,29 @@ const PaymentsPage: React.FC = () => {
     }
   };
   
+  // Function to open receipt in new tab and trigger print dialog
+  const openAndPrintReceipt = async (receiptId: number) => {
+    try {
+      const blob = await financeService.downloadReceipt(receiptId);
+      const url = window.URL.createObjectURL(blob);
+      
+      // Open in new tab
+      const newTab = window.open(url, '_blank');
+      
+      // Trigger print dialog after the PDF is loaded
+      if (newTab) {
+        newTab.addEventListener('load', () => {
+          setTimeout(() => {
+            newTab.print();
+          }, 1000); // Small delay to ensure PDF is fully loaded
+        });
+      }
+    } catch (error) {
+      console.error('Failed to open and print receipt:', error);
+      setError('Failed to open receipt for printing. Please download it manually.');
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       setLoading(true);
@@ -142,6 +165,11 @@ const PaymentsPage: React.FC = () => {
         } else {
           // For admin and faculty, fetch all payments
           dispatch(fetchPayments() as any);
+          
+          // For admin and faculty, automatically open and print the receipt
+          if (resultAction.payload && resultAction.payload.receipt) {
+            openAndPrintReceipt(resultAction.payload.receipt.id);
+          }
         }
         
         // Refresh student fees data
@@ -149,7 +177,7 @@ const PaymentsPage: React.FC = () => {
           dispatch(fetchStudentFees({ student_id: paymentData.student_id }) as any);
         }
         
-        setSuccess('Payment created successfully! A receipt has been generated.');
+        setSuccess('Payment created successfully! A receipt has been generated and opened for printing.');
         handleDialogClose();
       }
       
@@ -177,6 +205,19 @@ const PaymentsPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to download receipt:', error);
       setError('Failed to download receipt. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  // Function to view and print receipt
+  const handleViewAndPrintReceipt = async (receiptId: number) => {
+    try {
+      setLoading(true);
+      await openAndPrintReceipt(receiptId);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to view and print receipt:', error);
+      setError('Failed to open receipt for printing. Please try again.');
       setLoading(false);
     }
   };
@@ -350,13 +391,24 @@ const PaymentsPage: React.FC = () => {
                   <TableCell>{payment.transaction_id || 'N/A'}</TableCell>
                   <TableCell>
                     {payment.receipt && (
-                      <Button
-                        size="small"
-                        startIcon={<DownloadIcon />}
-                        onClick={() => handleDownloadReceipt(payment.receipt.id)}
-                      >
-                        Download
-                      </Button>
+                      <>
+                        <Button
+                          size="small"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownloadReceipt(payment.receipt.id)}
+                          style={{ marginRight: '8px' }}
+                        >
+                          Download
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<PrintIcon />}
+                          onClick={() => handleViewAndPrintReceipt(payment.receipt.id)}
+                          color="secondary"
+                        >
+                          View & Print
+                        </Button>
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
