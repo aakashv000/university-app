@@ -238,11 +238,19 @@ def read_payments(
     if end_date:
         query = query.filter(Payment.payment_date <= end_date)
     
-    # Get payments with joined student_fee data
+    # Get payments with joined student_fee data including course and institute
     query = query.join(StudentFee, Payment.student_fee_id == StudentFee.id)
     query = query.join(Semester, StudentFee.semester_id == Semester.id)
+    query = query.join(Course, StudentFee.course_id == Course.id)
+    query = query.join(Institute, Course.institute_id == Institute.id)
+    
+    # Load all related entities
     query = query.options(
-        joinedload(Payment.student_fee).joinedload(StudentFee.semester)
+        joinedload(Payment.student_fee)
+        .joinedload(StudentFee.semester),
+        joinedload(Payment.student_fee)
+        .joinedload(StudentFee.course)
+        .joinedload(Course.institute)
     )
     
     payments = query.order_by(desc(Payment.payment_date)).offset(skip).limit(limit).all()

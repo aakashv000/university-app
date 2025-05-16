@@ -77,6 +77,14 @@ class StudentFeeInDBBase(StudentFeeBase):
 class StudentFee(StudentFeeInDBBase):
     course: Optional[Course] = None
     semester: Optional[Semester] = None
+    
+    @property
+    def course_name(self) -> str:
+        return self.course.name if self.course else "N/A"
+        
+    @property
+    def institute_name(self) -> str:
+        return self.course.institute.name if self.course and self.course.institute else "N/A"
 
 # Payment schemas
 class PaymentBase(BaseModel):
