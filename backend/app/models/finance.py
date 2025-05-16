@@ -4,16 +4,22 @@ from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql import func
 
 from app.db.session import Base
+# Import only what's needed to avoid circular imports
+from app.models.associations import student_course
 
 class Semester(Base):
     __tablename__ = "semesters"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False)  # 'semester' or 'year'
+    order_in_course = Column(Integer, nullable=False)  # e.g., 1st semester, 2nd year
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
     
     # Relationships
+    course = relationship("Course", back_populates="semesters")
     fee_structures = relationship("FeeStructure", back_populates="semester")
     student_fees = relationship("StudentFee", back_populates="semester")
 
@@ -36,6 +42,7 @@ class StudentFee(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
     semester_id = Column(Integer, ForeignKey("semesters.id"), nullable=False)
     amount = Column(Float, nullable=False)
     description = Column(String)
@@ -44,6 +51,7 @@ class StudentFee(Base):
     
     # Relationships
     student = relationship("User", back_populates="student_fees")
+    course = relationship("Course", back_populates="student_fees")
     semester = relationship("Semester", back_populates="student_fees")
     payments = relationship("Payment", back_populates="student_fee")
 

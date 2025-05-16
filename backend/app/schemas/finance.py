@@ -2,9 +2,14 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
+from app.schemas.academic import Institute, Course
+
 # Semester schemas
 class SemesterBase(BaseModel):
+    course_id: int
     name: str
+    type: str  # 'semester' or 'year'
+    order_in_course: int
     start_date: datetime
     end_date: datetime
 
@@ -21,7 +26,7 @@ class SemesterInDBBase(SemesterBase):
         orm_mode = True
 
 class Semester(SemesterInDBBase):
-    pass
+    course: Optional[Course] = None
 
 # FeeStructure schemas
 class FeeStructureBase(BaseModel):
@@ -50,6 +55,7 @@ class FeeStructure(FeeStructureInDBBase):
 # StudentFee schemas
 class StudentFeeBase(BaseModel):
     student_id: int
+    course_id: int
     semester_id: int
     amount: float
     description: Optional[str] = None
@@ -69,7 +75,8 @@ class StudentFeeInDBBase(StudentFeeBase):
         orm_mode = True
 
 class StudentFee(StudentFeeInDBBase):
-    semester: Semester
+    course: Optional[Course] = None
+    semester: Optional[Semester] = None
 
 # Payment schemas
 class PaymentBase(BaseModel):
@@ -122,6 +129,9 @@ class Receipt(ReceiptInDBBase):
 class PaymentWithReceipt(Payment):
     receipt: Optional[Receipt] = None
     student_fee: Optional[StudentFee] = None
+
+class SemesterWithCourse(Semester):
+    course: Course
 
 class StudentFeeWithPayments(StudentFee):
     payments: List[PaymentWithReceipt] = []

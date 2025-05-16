@@ -1,17 +1,10 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.sql import func
 
 from app.db.session import Base
-
-# Association table for many-to-many relationship between users and roles
-user_role = Table(
-    "user_roles",
-    Base.metadata,
-    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
-    Column("role_id", Integer, ForeignKey("roles.id"), primary_key=True),
-)
+from app.models.associations import user_role, student_course
 
 class User(Base):
     __tablename__ = "users"
@@ -26,6 +19,7 @@ class User(Base):
     
     # Relationships
     roles = relationship("Role", secondary=user_role, back_populates="users")
+    courses = relationship("Course", secondary="student_courses", back_populates="students")
     student_fees = relationship("StudentFee", back_populates="student")
     payments = relationship("Payment", back_populates="student")
 

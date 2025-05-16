@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 
 from app.core.dependencies import get_db, get_admin_user, get_faculty_user, get_student_user, get_current_active_user
 from app.models.user import User
+from app.models.academic import Institute, Course
 from app.models.finance import Semester, FeeStructure, StudentFee, Payment, Receipt
 from app.schemas.finance import (
     Semester as SemesterSchema, SemesterCreate, SemesterUpdate,
@@ -45,8 +46,19 @@ def create_semester(
     """
     Create new semester. Admin only.
     """
+    # Check if course exists
+    course = db.query(Course).filter(Course.id == semester_in.course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="The course with this id does not exist",
+        )
+        
     semester = Semester(
+        course_id=semester_in.course_id,
         name=semester_in.name,
+        type=semester_in.type,
+        order_in_course=semester_in.order_in_course,
         start_date=semester_in.start_date,
         end_date=semester_in.end_date,
     )
@@ -146,6 +158,14 @@ def create_student_fee(
             detail="The student with this id does not exist",
         )
     
+    # Check if course exists
+    course = db.query(Course).filter(Course.id == student_fee_in.course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="The course with this id does not exist",
+        )
+    
     # Check if semester exists
     semester = db.query(Semester).filter(Semester.id == student_fee_in.semester_id).first()
     if not semester:
@@ -154,8 +174,23 @@ def create_student_fee(
             detail="The semester with this id does not exist",
         )
     
+    # Check if semester belongs to the course
+    if semester.course_id != student_fee_in.course_id:
+        raise HTTPException(
+            status_code=400,
+            detail="The semester does not belong to the specified course",
+        )
+    
+    # Check if student is enrolled in the course
+    if course not in student.courses:
+        raise HTTPException(
+            status_code=400,
+            detail="The student is not enrolled in this course",
+        )
+    
     student_fee = StudentFee(
         student_id=student_fee_in.student_id,
+        course_id=student_fee_in.course_id,
         semester_id=student_fee_in.semester_id,
         amount=student_fee_in.amount,
         description=student_fee_in.description,
@@ -251,12 +286,14 @@ def create_payment(
     db.add(payment)
     db.flush()
     
-    # Get semester information for receipt number
+    # Get course and semester information for receipt number
+    course = student_fee.course
     semester = student_fee.semester
+    course_code = course.code.upper()
     semester_code = semester.name.replace(' ', '').upper()
     
-    # Generate receipt number with course ID (student_fee_id) and semester info
-    receipt_number = f"RCPT-{payment.id}-{student_fee.id}-{semester_code}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    # Generate receipt number with course code and semester info
+    receipt_number = f"RCPT-{payment.id}-{course_code}-{semester_code}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
     # Generate PDF path
     pdf_dir = os.path.join(os.getcwd(), "receipts")

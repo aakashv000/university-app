@@ -44,8 +44,11 @@ class UserInDBBase(UserBase):
     class Config:
         orm_mode = True
 
+from app.schemas.academic import Course
+
 class User(UserInDBBase):
     roles: List[Role] = []
+    courses: List[Course] = []
 
 class UserInDB(UserInDBBase):
     hashed_password: str
